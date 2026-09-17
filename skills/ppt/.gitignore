@@ -1,0 +1,18 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary Office files
+~$*.pptx
+~$*.potx
+~$*.pdf
+
+# Generated presentation artifacts
+output/
+tmp/
+*.tmp

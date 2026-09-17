@@ -1,0 +1,7 @@
+interface:
+  display_name: "深度技术方案与规范撰写"
+  short_description: "代码驱动、六要素闭环、公式即刻解释与 OMML 排版的专业撰写技能"
+  brand_color: "#1F4E79"
+  default_prompt: "使用 $word 按照严谨闭环规范、工程事实对齐与 OMML 公式排版要求，撰写或重构此技术方案文档。"
+policy:
+  allow_implicit_invocation: true

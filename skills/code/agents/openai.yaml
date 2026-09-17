@@ -1,0 +1,7 @@
+interface:
+  display_name: "代码编写与架构工程规范"
+  short_description: "遵循实用主义开发哲学与高标准工程规范"
+  brand_color: "#2D8CFF"
+  default_prompt: "使用 $code 按照工程规范进行架构设计、代码编写与测试验证。"
+policy:
+  allow_implicit_invocation: true

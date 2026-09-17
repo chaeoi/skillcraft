@@ -1,0 +1,7 @@
+interface:
+  display_name: "隐私优先汇报 PPT"
+  short_description: "生成克制蓝色、信息充实且默认匿名化的中文汇报 PPT"
+  brand_color: "#155F96"
+  default_prompt: "使用 $ppt 将这份材料整理成简洁、成熟、内容充实且默认匿名化的中文汇报 PPT。"
+policy:
+  allow_implicit_invocation: true

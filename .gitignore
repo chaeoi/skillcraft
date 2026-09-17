@@ -1,0 +1,20 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary Office and build artifacts
+~$*.pptx
+~$*.potx
+~$*.pdf
+output/
+tmp/
+*.tmp
+
+# Python cache
+__pycache__/
+*.pyc
