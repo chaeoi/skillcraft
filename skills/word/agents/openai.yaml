@@ -1,7 +1,7 @@
 interface:
-  display_name: "通用技术方案与全品类文档撰写"
-  short_description: "适用于所有文档类工作的通用工程文字手法、六要素闭环与严谨规范"
+  display_name: "通用技术文档与方案撰写"
+  short_description: "适用于所有文档类工作的专业口吻、叙事手法与工程注意事项"
   brand_color: "#1F4E79"
-  default_prompt: "使用 $word 按照通用技术文档规范、六要素闭环、即刻参数解释与去 AI 感要求，撰写或重构此技术文档。"
+  default_prompt: "使用 $word 按照专业工程师口吻、权衡驱动的叙事手法与去 AI 感要求，撰写或重构此技术文档。"
 policy:
   allow_implicit_invocation: true
