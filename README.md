@@ -34,14 +34,24 @@ skillcraft/
     │   │   └── openai.yaml    # Codex 界面元数据与调用策略
     │   └── references/
     │       └── guide.md       # 纯文字撰写全书（因果推导、去 AI 感与注意事项）
-    └── word/                  # Word (DOCX) 专业排版与格式规范技能
-        ├── SKILL.md           # 标准工程报告排版格式系统与自检清单
+    ├── word/                  # Word (DOCX) 专业排版与格式规范技能
+    │   ├── SKILL.md           # 标准工程报告排版格式系统与自检清单
+    │   ├── README.md          # 技能详细说明
+    │   ├── agents/
+    │   │   └── openai.yaml    # Codex 界面元数据与调用策略
+    │   └── references/
+    │       ├── guide.md       # Word 标准工程报告排版规范指南
+    │       └── math_omml.md   # Word 原生公式 (OMML) 排版避坑实战手册
+    └── translate/             # 学术论文与工程技术文献高保真翻译技能
+        ├── SKILL.md           # 三层资产架构、自适应排版与交付自检清单
         ├── README.md          # 技能详细说明
         ├── agents/
         │   └── openai.yaml    # Codex 界面元数据与调用策略
         └── references/
-            ├── guide.md       # Word 标准工程报告排版规范指南
-            └── math_omml.md   # Word 原生公式 (OMML) 排版避坑实战手册
+            ├── workflow.md    # 论文翻译标准化作业全流程（SOP）
+            ├── extraction_rules.md # 插图高精度提取、切片拼合与防截断手册
+            ├── math_syntax.md # LaTeX 公式转 OMML 严谨语法与避坑指南
+            └── layout_specs.md # 自适应插图尺寸策略与 Word 最终版式标准
 ```
 
 ## 收录技能
@@ -52,6 +62,7 @@ skillcraft/
 | `code` | `skills/code` | 极简链路、静态优先、前后端契约严谨的代码编写与工程架构规范 | `$code` |
 | `write` | `skills/write` | 通用技术文档纯文字撰写，专注于专业口吻、权衡驱动叙事、因果递进逻辑与核心注意事项（适用 Markdown、Wiki、RFC、方案白皮书等全文本场景） | `$write` |
 | `word` | `skills/word` | Word (DOCX) 专业排版格式系统与矢量公式排版（三线表、代码清单框、分节页码体系）。**所有 Word 文档若无特殊要求默认强制采用标准工程报告排版格式** | `$word` |
+| `translate` | `skills/translate` | 高严谨度学术论文与工程文献双语翻译，涵盖原件只读保护、高保真无损切片拼图提取、自适应长宽比图文协调排版与矢量 OMML 公式转译 | `$translate` |
 
 ---
 

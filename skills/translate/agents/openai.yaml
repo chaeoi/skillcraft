@@ -1,0 +1,4 @@
+display_name: Translate
+short_description: 学术论文与工程技术文献高保真翻译技能
+default_prompt: |
+  使用 $translate 严格遵循原始文献三层架构、高保真无损图表提取、原生矢量公式与自适应长宽比排版规程，完成论文翻译与交付验收。
