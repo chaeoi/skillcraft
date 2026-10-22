@@ -78,13 +78,16 @@ Agent 在当前工作目录下执行自动化编译与版式后处理（详细 P
      --resource-path papers/intermediate \
      --standalone
    ```
-3. **OpenXML 版式与尺寸后处理（基于结构分区的对齐注入）**：
+3. **OpenXML 版式与尺寸后处理（基于结构分区的对齐注入与 ECMA-376 严格排序）**：
+   - **保持 `word/styles.xml` 原生干净基线**：严禁向 `styles.xml` 批量注入 `pPr` 属性，避免污染 Word 样式继承树，确保样式定义合规解析；
    - 提取解包 `.docx`，根据图片长宽比（Aspect Ratio）自动缩放 `wp:extent` 和 `a:ext`，严格控高防止撑满版面；
-   - **结构分区注入对齐属性**：
+   - **在 `word/document.xml` 中以段落级别注入结构分区对齐属性**：
      - **文首元数据（Front-Matter Metadata）**：作者、单位机构、通讯作者、DOI 等段落严格注入**左对齐**（`<w:jc w:val="left"/>`），杜绝因两端对齐导致的字距严重拉伸变形；
      - **正文主体段落（Body Text）**：引言、实验、讨论及结论等学术正文段落严格注入**两端对齐**（`<w:jc w:val="both"/>`）；
      - **章节标题（Headings）**：各级标题指定为**左对齐**（`<w:jc w:val="left"/>`）；
      - **插图与图表题（Drawings & Captions）**：注入水平居中（`<w:jc w:val="center"/>`）与 `keepNext` 同页保护。
+   - **ECMA-376 Schema 子元素严格排序（杜绝 Word 报修复错误）**：
+     - 对 `document.xml` 中的所有修改过的 `<w:pPr>` 节点执行标准序列排序（`pStyle -> keepNext -> numPr -> ... -> jc -> ... -> rPr -> sectPr`），序列化时使用 `lxml.etree` 配合 `standalone="yes"` 输出，确保标准命名空间前缀原样保留。
 4. **静态合法性校验**：检查公式定界符、禁用 `\tag`、图片存在性与无重复配置。
 
 ---

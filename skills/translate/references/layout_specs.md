@@ -54,12 +54,80 @@ $$w' = \text{round}(w \cdot s), \quad h' = \text{round}(h \cdot s)$$
 
 ## 三、 Python (WordprocessingML / DrawingML) 落地实现
 
-在 Pandoc 导出 docx 后，解压 `word/document.xml` 并修改 `wp:inline` 节点的 `wp:extent` 与 `a:xfrm/a:ext`：
+在 Pandoc 导出 docx 后，解压 `word/document.xml` 执行以下严格遵循 **ECMA-376 架构标准** 与 **原生 XML 命名空间规范** 的尺寸与版式后处理（注意：`word/styles.xml` 必须保持 Pandoc 干净的原生基线，严禁对其样式节点大面积注入 `pPr`，以防破坏 Word 样式继承树并引发样式解析异常）：
+
+### 1. 命名空间前缀保护与 lxml 解析铁律（核心避坑）
+**标准命名空间前缀破坏问题**：Python 自带的 `xml.etree.ElementTree` 在重新序列化 OpenXML 文档时，默认会丢失原始的 `w:`, `m:`, `r:`, `a:`, `wp:`, `pic:` 前缀，改写为自动生成的 `ns0:`, `ns1:`, `ns4:`。Microsoft Word（特别是桌面端较新版本）内部依赖标准的前缀绑定及部件声明，面对被重写前缀的文档，会直接弹窗警告**“发现无法读取的内容，是否修复”**！
+
+**强制规程**：必须使用 **`lxml.etree`**（或显式注册所有全局命名空间前缀映射），以 `standalone="yes"` 输出，完整保留 `<w:document>`, `<m:oMath>`, `<wp:extent>` 等原生标准前缀。
+
+### 2. ECMA-376 严格子元素排序规范（Word 严格解析合规）
+**微软 Word 的严格验证机制**：Word 对 `<w:pPr>`（段落属性）内部子元素的排列顺序有强 Schema 约束（必须严格满足 ECMA-376 规定的序列：`pStyle -> keepNext -> ... -> numPr -> ... -> jc -> ... -> rPr -> sectPr`）。如果使用 `etree.SubElement(ppr, "jc")` 盲目追加到末尾，或者将 `keepNext` 插在 `jc` 之后，就会破坏 Schema 顺序，导致桌面版 Microsoft Word 打开时判定为非法 XML。同时，全局样式表 `word/styles.xml` 切勿盲目注入非必要 `w:pPr`，避免破坏继承树导致样式解析回退。
+
+因此，任何对 `document.xml` 中 `pPr` 属性进行增删改的操作，必须统一执行 Schema 排序重组函数：
 
 ```python
-EMU_PER_INCH = 914400
+SCHEMA_PPR_ORDER = [
+    "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr",
+    "widowControl", "numPr", "pBdr", "shd", "tabs", "suppressAutoHyphens",
+    "kinsoku", "wordWrap", "overflowPunct", "topLinePunct", "autoSpaceDE",
+    "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind",
+    "contextualSpacing", "mirrorIndents", "suppressOverlap", "jc",
+    "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl",
+    "divId", "cnfStyle", "rPr", "sectPr", "pPrChange"
+]
+order_map = {tag: i for i, tag in enumerate(SCHEMA_PPR_ORDER)}
+
+def reorder_ppr(ppr):
+    """确保 pPr 子元素严格按照 ECMA-376 标准顺序排列，杜绝 Word 报错修复"""
+    children = list(ppr)
+    for c in children:
+        ppr.remove(c)
+    sorted_children = sorted(
+        children,
+        key=lambda c: order_map.get(c.tag.split("}")[-1], 999)
+    )
+    for c in sorted_children:
+        ppr.append(c)
+```
+
+### 3. 插图自适应尺寸缩放与结构分区对齐完整 Python 实现
+
+```python
+import os
+import shutil
+import zipfile
+from pathlib import Path
+from lxml import etree
+
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+
+EMU_PER_INCH = 914400
+
+SCHEMA_PPR_ORDER = [
+    "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr",
+    "widowControl", "numPr", "pBdr", "shd", "tabs", "suppressAutoHyphens",
+    "kinsoku", "wordWrap", "overflowPunct", "topLinePunct", "autoSpaceDE",
+    "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind",
+    "contextualSpacing", "mirrorIndents", "suppressOverlap", "jc",
+    "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl",
+    "divId", "cnfStyle", "rPr", "sectPr", "pPrChange"
+]
+order_map = {tag: i for i, tag in enumerate(SCHEMA_PPR_ORDER)}
+
+def reorder_ppr(ppr):
+    """确保 pPr 子元素严格按照 ECMA-376 标准顺序排列，杜绝 Word 报错修复"""
+    children = list(ppr)
+    for c in children:
+        ppr.remove(c)
+    sorted_children = sorted(
+        children,
+        key=lambda c: order_map.get(c.tag.split("}")[-1], 999)
+    )
+    for c in sorted_children:
+        ppr.append(c)
 
 def _compute_target_bounds(aspect_ratio: float):
     if aspect_ratio < 0.9:
@@ -98,6 +166,90 @@ def fit_drawing(drawing):
     if transform_extent is not None:
         transform_extent.set("cx", fitted_w)
         transform_extent.set("cy", fitted_h)
+
+def postprocess_docx(raw_docx_path: str, final_docx_path: str):
+    """
+    对 Pandoc 生成的 docx 进行后处理：
+    1. 保持 styles.xml 为纯净原生基线，绝不乱改样式继承树；
+    2. 针对 document.xml 实施精准的结构分区对齐注入与 ECMA-376 pPr 顺序重排；
+    3. 自适应计算插图尺寸并注入 keepNext 与水平居中。
+    """
+    tmp_dir = Path("/tmp/docx_unpack")
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    
+    with zipfile.ZipFile(raw_docx_path, "r") as z:
+        z.extractall(tmp_dir)
+        
+    doc_xml_path = tmp_dir / "word" / "document.xml"
+    parser = etree.XMLParser(remove_blank_text=False)
+    droot = etree.parse(str(doc_xml_path), parser).getroot()
+    
+    # 结构分区对齐
+    in_front_matter = True
+    for p in droot.iter(f"{{{W_NS}}}p"):
+        ppr = p.find(f"{{{W_NS}}}pPr")
+        sid = ""
+        if ppr is not None:
+            pstyle = ppr.find(f"{{{W_NS}}}pStyle")
+            if pstyle is not None:
+                sid = pstyle.get(f"{{{W_NS}}}val", "")
+        text = "".join(p.itertext()).strip()
+        
+        # 遇摘要、导读或正文主章节，结束文首元数据区
+        if sid.startswith("Heading3") and any(k in text for k in ("编者导读", "摘要", "引言", "Abstract", "Introduction")):
+            in_front_matter = False
+            
+        has_img = p.find(f".//{{{W_NS}}}drawing") is not None
+        is_caption = sid in ("ImageCaption", "Caption", "TableCaption")
+        is_heading = sid.startswith("Heading")
+        
+        if ppr is None:
+            ppr = etree.Element(f"{{{W_NS}}}pPr")
+            p.insert(0, ppr)
+            
+        jc = ppr.find(f"{{{W_NS}}}jc")
+        if jc is None:
+            jc = etree.SubElement(ppr, f"{{{W_NS}}}jc")
+            
+        if has_img:
+            jc.set(f"{{{W_NS}}}val", "center")
+            if ppr.find(f"{{{W_NS}}}keepNext") is None:
+                etree.SubElement(ppr, f"{{{W_NS}}}keepNext")
+        elif is_caption:
+            jc.set(f"{{{W_NS}}}val", "center")
+        elif is_heading:
+            jc.set(f"{{{W_NS}}}val", "left")
+        elif in_front_matter:
+            jc.set(f"{{{W_NS}}}val", "left")
+        else:
+            jc.set(f"{{{W_NS}}}val", "both")
+            
+        reorder_ppr(ppr)
+        
+    # 插图尺寸自适应缩放
+    for drawing in droot.iter(f"{{{W_NS}}}drawing"):
+        fit_drawing(drawing)
+        
+    # 以 standalone="yes" 保存 document.xml，保留全部标准命名空间前缀
+    doc_tree = etree.ElementTree(droot)
+    doc_tree.write(
+        str(doc_xml_path),
+        xml_declaration=True,
+        encoding="UTF-8",
+        standalone="yes"
+    )
+    
+    # 重新封包为目标 docx
+    if os.path.exists(final_docx_path):
+        os.remove(final_docx_path)
+    with zipfile.ZipFile(final_docx_path, "w", zipfile.ZIP_DEFLATED) as z_out:
+        for root, dirs, files in os.walk(tmp_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                rel_path = os.path.relpath(full_path, tmp_dir)
+                z_out.write(full_path, rel_path)
 ```
 
 ---
