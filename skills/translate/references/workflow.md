@@ -66,18 +66,24 @@
 
 ## 阶段四：自动化编译与排版流水线
 
-在仓库根目录下运行标准化工具链：
+Agent 在当前工作目录下执行自动化编译与版式后处理（详细 Python 实现逻辑见 [references/layout_specs.md](layout_specs.md)）：
 
-```bash
-# 1. 修复转义控制符与损坏的括号
-python3 tools/repair_markdown.py
-
-# 2. 编译生成带有自适应尺寸与专业版式的 Word 文档
-python3 tools/compile_all_docx.py
-
-# 3. 静态合法性校验（公式、图片存在性、页面标头）
-python3 tools/validate_repository.py
-```
+1. **语法与公式预检**：修复转义控制符与损坏的定界符（如 `\right` 残留 `ight`、`\lvert` 冲突等）；
+2. **Pandoc 编译**：
+   ```bash
+   pandoc papers/intermediate/<Paper Title>.md \
+     -f markdown+tex_math_dollars \
+     -t docx \
+     -o papers/translations/<Paper Title>.docx \
+     --resource-path papers/intermediate \
+     --standalone
+   ```
+3. **OpenXML 版式与尺寸后处理**：
+   - 提取解包 `.docx`，根据图片长宽比（Aspect Ratio）自动缩放 `wp:extent` 和 `a:ext`，严格控高防止撑满版面；
+   - 在 `word/styles.xml` 与 `word/document.xml` 中注入正文样式与段落的**两端对齐**（`<w:jc w:val="both"/>`）；
+   - 注入插图与图题水平居中（`<w:jc w:val="center"/>`）与 `keepNext` 同页保护；
+   - 各级标题指定为左对齐（`<w:jc w:val="left"/>`）。
+4. **静态合法性校验**：检查公式定界符、禁用 `\tag`、图片存在性与无重复配置。
 
 ---
 

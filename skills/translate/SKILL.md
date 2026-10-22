@@ -99,8 +99,10 @@ papers/translations/<Paper Title>.docx        # 3. Word 最终交付件：集中
 - **全景 / 多步态条幅宽图（$w/h \ge 2.2$）**：
   - 最大宽度展开至 5.15 英寸（版心适度留白），最大高度控制在 2.30 英寸以内。
 
-### 2. 图题与表格排版规程
-- **插图本体**：独立成段，水平居中对齐。
+### 2. 正文、图题与表格排版规程
+- **正文段落**：学术论文正文必须严格实行**两端对齐**（Justified，即 `<w:jc w:val="both"/>`），绝对严禁使用默认左对齐，确保中西文混排时左右版心边缘规整平齐；中文小四号宋体（12 pt），西文 Times New Roman。
+- **章节标题**：标题（Heading 1~9）统一采用左对齐（`<w:jc w:val="left"/>`），杜绝因两端对齐导致短标题字间距被异常拉伸。
+- **插图本体**：独立成段，水平居中对齐（`<w:jc w:val="center"/>`）。
 - **图题**：位于插图正下方，五号黑体（SimHei / 9.5 pt），居中对齐，格式为 `图 1 原文图题中文翻译`。
 - **表格**：默认强制采用**学术三线表**（顶底 1.5 磅粗线、表头底 0.75 磅细线、无坚线、纯白背景）；表题位于表格正上方居中，五号黑体。
 
@@ -108,13 +110,17 @@ papers/translations/<Paper Title>.docx        # 3. Word 最终交付件：集中
 
 ## 六、 自动化流水线与交付质检清单 (Delivery Checklist)
 
-完成 Markdown 翻译与插图提取后，依次执行三步标准流水线：
+完成 Markdown 翻译与插图提取后，Agent 依据排版规范执行三步自动化编译与后处理流水线：
 
-```bash
-python3 tools/repair_markdown.py     # 1. 自动修复转义残损、公式括号与异常控制符
-python3 tools/compile_all_docx.py    # 2. 调用 Pandoc 并执行 Word 自适应尺寸与版式后处理
-python3 tools/validate_repository.py # 3. 静态语法、公式 OMML、图片引用与页面标头校验
-```
+1. **语法与公式修复**：自动排查修复 Markdown 中的转义残损、公式括号闭合与异常控制符；
+2. **Pandoc 编译与 Word 版式后处理**：
+   - 调用 Pandoc（`markdown+tex_math_dollars -> docx`）转译为 OMML 原生矢量公式；
+   - 对生成的 `word/document.xml` 与 `word/styles.xml` 执行自适应图片缩放（依据纵横比控高控宽）、注入插图与图题居中 (`center`) 及图文同页绑定 (`keepNext`)；
+   - 注入正文（`Normal`、`BodyText`、`FirstParagraph`、`Compact`）**两端对齐** (`both`) 与章节标题**左对齐** (`left`)；
+   - 配置 A4 纸张尺寸与上下 1.0 英寸、左右 1.25 英寸标准边距。
+3. **交付前静态校验**：校验公式美元符号配对、禁用 `\tag{}`、图片存在性与单射唯一性。
+
+详细实现逻辑与 Python 代码详见 [references/layout_specs.md](references/layout_specs.md) 与 [references/math_syntax.md](references/math_syntax.md)。
 
 ### 交付前目检查验清单（不可替代的最终防线）
 - [ ] **原件只读**：`papers/originals/` 原始 PDF 毫发无损，无覆盖修改。
